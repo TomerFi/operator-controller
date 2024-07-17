@@ -125,6 +125,7 @@ E2E_REGISTRY_NAMESPACE := operator-controller-e2e
 
 export REG_PKG_NAME := registry-operator
 export REGISTRY_ROOT := $(E2E_REGISTRY_NAME).$(E2E_REGISTRY_NAMESPACE).svc:5000
+export CATALOG_NAME := test-catalog
 export CATALOG_IMG := $(REGISTRY_ROOT)/test-catalog:e2e
 .PHONY: test-ext-dev-e2e
 test-ext-dev-e2e: $(OPERATOR_SDK) $(KUSTOMIZE) $(KIND) #HELP Run extension create, upgrade and delete tests.
@@ -143,6 +144,9 @@ image-registry: ## Setup in-cluster image registry
 build-push-e2e-catalog: ## Build the testdata catalog used for e2e tests and push it to the image registry
 	./test/tools/build-push-e2e-catalog.sh $(E2E_REGISTRY_NAMESPACE) $(CATALOG_IMG)
 
+create-catalog: ## Create an insecure image-typed ClusterCatalog
+	./test/tools/create-catalog.sh $(CATALOG_NAME) $(CATALOG_IMG)
+
 # When running the e2e suite, you can set the ARTIFACT_PATH variable to the absolute path
 # of the directory for the operator-controller e2e tests to store the artifacts, which
 # may be helpful for debugging purposes after a test run.
@@ -158,6 +162,11 @@ test-e2e: run image-registry build-push-e2e-catalog registry-load-bundles e2e e2
 extension-developer-e2e: KUSTOMIZE_BUILD_DIR := config/overlays/cert-manager
 extension-developer-e2e: KIND_CLUSTER_NAME := operator-controller-ext-dev-e2e  #EXHELP Run extension-developer e2e on local kind cluster
 extension-developer-e2e: run image-registry test-ext-dev-e2e kind-clean
+
+.PHONY: test-perf
+test-perf: KIND_CLUSTER_NAME := operator-controller-perf
+test-perf: KUSTOMIZE_BUILD_DIR := config/overlays/perf
+test-perf: run image-registry build-push-e2e-catalog registry-load-bundles create-catalog #HELP Run performance tests on local kind cluster
 
 .PHONY: e2e-coverage
 e2e-coverage:
